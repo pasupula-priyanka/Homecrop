@@ -53,7 +53,7 @@ app.post('/login', (req, res) => {
 app.post('/add-product', async (req, res) => {
     try {
       const { name, category} = req.body;
-      if (!['Plant Care', 'Grow Bags', 'Packing Materials', 'Potting Mix'].includes(category)) {
+      if (!['Plant Care', 'Grow Bags', 'Packing Materials', 'Potting Mix', 'Rolls'].includes(category)) {
         return res.status(400).json({ message: 'Invalid category' });
       }
       const newProduct = new Product({ name, category}); 
@@ -141,7 +141,7 @@ app.patch('/update-product/:id', async (req, res) => {
   });
 // In your server.js or routes file
 app.get('/categories', (req, res) => {
-  const categories = ['Plant Care', 'Grow Bags', 'Packing Materials', 'Potting Mix'];
+  const categories = ['Plant Care', 'Grow Bags', 'Packing Materials', 'Potting Mix', 'Rolls'];
   res.status(200).json({ categories });
 });
 
