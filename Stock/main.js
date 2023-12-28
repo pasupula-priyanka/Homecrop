@@ -94,7 +94,7 @@ app.patch('/update-product/:id', async (req, res) => {
 
     if (category) {
       // Validate the category against predefined categories
-      if (!['Plant Care', 'Grow Bags', 'Packing Materials', 'Potting Mix'].includes(category)) {
+      if (!['Plant Care', 'Grow Bags', 'Packing Materials', 'Potting Mix', 'Rolls'].includes(category)) {
         return res.status(400).json({ message: 'Invalid category' });
       }
 
@@ -122,7 +122,7 @@ app.patch('/update-product/:id', async (req, res) => {
       const { category } = req.params;
   
       // Check if the provided category is valid
-      if (!['Plant Care', 'Grow Bags', 'Packing Materials', 'Potting Mix'].includes(category)) {
+      if (!['Plant Care', 'Grow Bags', 'Packing Materials', 'Potting Mix','Rolls'].includes(category)) {
         return res.status(400).json({ message: 'Invalid category' });
       }
   
