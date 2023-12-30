@@ -201,7 +201,7 @@ app.post('/record-stock', async (req, res) => {
     const recordToUpdate = await DailyStockRecord.findOneAndUpdate(
       { 'products.product': product },
       { $push: { 'products.$.records': newRecord } },
-      { new: true }
+      { new: true, upsert: true }
     );
 
     if (recordToUpdate) {
@@ -210,25 +210,13 @@ app.post('/record-stock', async (req, res) => {
         record: recordToUpdate,
       });
     }
-
-    // If no existing record and no record to update, create a new one
-    const newStockRecord = new DailyStockRecord({
-      products: [
-        {
-          product,
-          records: [newRecord],
-        },
-      ],
-    });
-
-    await newStockRecord.save();
-
-    res.status(201).json({ message: 'Stock record recorded successfully', record: newStockRecord });
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Internal Server Error' });
   }
 });
+
+
 
 
 app.get('/wholestock-data', async (req, res) => {
