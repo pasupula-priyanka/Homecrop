@@ -53,7 +53,7 @@ app.post('/login', (req, res) => {
 app.post('/add-product', async (req, res) => {
     try {
       const { name, category} = req.body;
-      if (!['Plant Care', 'Grow Bags', 'Packing Materials', 'Potting Mix','Rolls'].includes(category)) {
+      if (!['Plant Care', 'Grow Bags', 'Packing Materials', 'Potting Mix'].includes(category)) {
         return res.status(400).json({ message: 'Invalid category' });
       }
       const newProduct = new Product({ name, category}); 
@@ -122,7 +122,7 @@ app.patch('/update-product/:id', async (req, res) => {
       const { category } = req.params;
   
       // Check if the provided category is valid
-      if (!['Plant Care', 'Grow Bags', 'Packing Materials', 'Potting Mix', 'Rolls'].includes(category)) {
+      if (!['Plant Care', 'Grow Bags', 'Packing Materials', 'Potting Mix'].includes(category)) {
         return res.status(400).json({ message: 'Invalid category' });
       }
   
@@ -141,7 +141,7 @@ app.patch('/update-product/:id', async (req, res) => {
   });
 // In your server.js or routes file
 app.get('/categories', (req, res) => {
-  const categories = ['Plant Care', 'Grow Bags', 'Packing Materials', 'Potting Mix','Rolls'];
+  const categories = ['Plant Care', 'Grow Bags', 'Packing Materials', 'Potting Mix'];
   res.status(200).json({ categories });
 });
 
@@ -201,7 +201,7 @@ app.post('/record-stock', async (req, res) => {
     const recordToUpdate = await DailyStockRecord.findOneAndUpdate(
       { 'products.product': product },
       { $push: { 'products.$.records': newRecord } },
-      { new: true, upsert: true }
+      { new: true }
     );
 
     if (recordToUpdate) {
@@ -210,16 +210,25 @@ app.post('/record-stock', async (req, res) => {
         record: recordToUpdate,
       });
     }
+
+    // If no existing record and no record to update, create a new one
+    const newStockRecord = new DailyStockRecord({
+      products: [
+        {
+          product,
+          records: [newRecord],
+        },
+      ],
+    });
+
+    await newStockRecord.save();
+
+    res.status(201).json({ message: 'Stock record recorded successfully', record: newStockRecord });
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Internal Server Error' });
   }
 });
-
-
-
-
-
 
 
 app.get('/wholestock-data', async (req, res) => {
