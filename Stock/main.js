@@ -147,93 +147,88 @@ app.get('/categories', (req, res) => {
 
 
 // Route to note the opening and closing stock for a specific day
-
 app.post('/record-stock', async (req, res) => {
   try {
     const { openingStock, closingStock, inflow, outflow, usage, product, date } = req.body;
 
-    // Check if the required parameters are present
-    if (!product || !date) {
-      return res.status(400).json({ message: 'Product and date are required fields.' });
-    }
-
-    // Fetch the existing record
-    const existingRecord = await DailyStockRecord.findOne({
+    const filter = {
       'products.product': product,
       'products.records.date': date,
-    });
+    };
+
+    const existingRecord = await DailyStockRecord.findOne(filter);
 
     if (existingRecord) {
-      // Find the index of the matching product in the array
-      const productIndex = existingRecord.products.findIndex(p => p.product.toString() === product);
+      // If the date exists, update opening and closing stocks
+      const update = {
+        $set: {
+          'products.$[p].records.$[r].openingStock': openingStock,
+          'products.$[p].records.$[r].closingStock': closingStock,
+          'products.$[p].records.$[r].inflow': inflow,
+          'products.$[p].records.$[r].outflow': outflow,
+          'products.$[p].records.$[r].usage': usage,
+        },
+      };
 
-      if (productIndex !== -1) {
-        // If the product exists, find the index of the matching record in the records array
-        const recordIndex = existingRecord.products[productIndex].records.findIndex(r => r.date.toString() === date);
+      const options = {
+        arrayFilters: [
+          { 'p.product': product },
+          { 'r.date': date },
+        ],
+        new: true,
+      };
 
-        if (recordIndex !== -1) {
-          // If the record exists, update the existing record
-          existingRecord.products[productIndex].records[recordIndex] = {
-            date,
-            openingStock,
-            closingStock,
-            inflow,
-            outflow,
-            usage,
-          };
-        } else {
-          // If the record doesn't exist, push a new record to the records array
-          existingRecord.products[productIndex].records.push({
-            date,
-            openingStock,
-            closingStock,
-            inflow,
-            outflow,
-            usage,
-          });
-        }
+      const record = await DailyStockRecord.findOneAndUpdate(filter, update, options);
 
-        // Save the updated record
-        const updatedRecord = await existingRecord.save();
-
+      if (record) {
         return res.status(200).json({
           message: 'Stock record for the specified day updated successfully',
-          record: updatedRecord,
+          record: record,
         });
       }
     }
 
-    // If the product or record doesn't exist, create a new record
+    // If the date does not exist, create a new record
     const newRecord = {
-      product,
-      records: [{
-        date,
-        openingStock,
-        closingStock,
-        inflow,
-        outflow,
-        usage,
-      }],
+      date,
+      openingStock,
+      closingStock,
+      inflow,
+      outflow,
+      usage,
     };
 
-    // Create a new DailyStockRecord with the new product and record
-    const newDailyStockRecord = new DailyStockRecord({
-      products: [newRecord],
+    const recordToUpdate = await DailyStockRecord.findOneAndUpdate(
+      { 'products.product': product },
+      { $push: { 'products.$.records': newRecord } },
+      { new: true }
+    );
+
+    if (recordToUpdate) {
+      return res.status(201).json({
+        message: 'Stock record recorded successfully',
+        record: recordToUpdate,
+      });
+    }
+
+    // If no existing record and no record to update, create a new one
+    const newStockRecord = new DailyStockRecord({
+      products: [
+        {
+          product,
+          records: [newRecord],
+        },
+      ],
     });
 
-    // Save the new record
-    const insertedRecord = await newDailyStockRecord.save();
+    await newStockRecord.save();
 
-    return res.status(200).json({
-      message: 'New stock record created successfully',
-      record: insertedRecord,
-    });
+    res.status(201).json({ message: 'Stock record recorded successfully', record: newStockRecord });
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Internal Server Error' });
   }
 });
-
 
 
 app.get('/wholestock-data', async (req, res) => {
@@ -359,6 +354,8 @@ app.get('/wholestock-data', async (req, res) => {
     res.status(500).json({ message: 'Internal Server Error' });
   }
 });
+
+
 
 
 // Add a route to get stock data by date and category
