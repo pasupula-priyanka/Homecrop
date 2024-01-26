@@ -502,66 +502,58 @@ app.get('/monthly-stocks/:year/:month/:category', async (req, res) => {
   try {
     const { year, month, category } = req.params;
     console.log('Received request with parameters:', { year, month, category });
-    // Validate month parameter
+
     const monthNumber = parseInt(month, 10);
     if (isNaN(monthNumber) || monthNumber < 1 || monthNumber > 12) {
       return res.status(400).json({ error: 'Invalid month parameter' });
     }
 
-    // Find product IDs for the specified category
     const productsInCategory = await Product.find({ category });
-
-    // Extract product IDs
     const productIds = productsInCategory.map((product) => product._id);
 
-    // Define the start and end date of the month
     const monthStartDate = new Date(`${year}-${monthNumber.toString().padStart(2, '0')}-01`);
     const monthEndDate = new Date(monthStartDate);
     monthEndDate.setMonth(monthEndDate.getMonth() + 1);
-    monthEndDate.setDate(monthEndDate.getDate() - 1); // Set to the last day of the month
+    monthEndDate.setDate(monthEndDate.getDate() - 1);
 
     console.log('Month Start Date:', monthStartDate);
     console.log('Month End Date:', monthEndDate);
 
-    // Fetch opening and closing stocks for each product
     const monthlyStocks = await Promise.all(
       productIds.map(async (productId) => {
         console.log('Fetching data for Product ID:', productId);
 
-        // Fetch the latest record before or on the start date
+        // Find the closest available record on or before the start date
         const openingStockRecord = await DailyStockRecord.findOne({
           'products.product': productId,
           'products.records.date': { $lte: monthStartDate },
         }).sort({ 'products.records.date': -1 });
 
-        console.log('Opening Stock Record:', openingStockRecord);
-
-        // Fetch the latest record before or on the end date
+        // Find the closest available record on or before the end date
         const closingStockRecord = await DailyStockRecord.findOne({
           'products.product': productId,
           'products.records.date': { $lte: monthEndDate },
         }).sort({ 'products.records.date': -1 });
 
-        console.log('Closing Stock Record:', closingStockRecord);
+        // Function to find the closest available record for a given date
+        const findClosestRecord = (record, targetDate) => {
+          if (!record) return null;
+          const closestRecord = record.products[0].records.reduce((closest, rec) => {
+            const recDate = rec.date.getTime();
+            const closestDate = closest ? closest.date.getTime() : 0;
+            const targetDateDiff = Math.abs(targetDate.getTime() - recDate);
+            const closestDateDiff = Math.abs(targetDate.getTime() - closestDate);
+            return targetDateDiff < closestDateDiff ? rec : closest;
+          }, null);
+          return closestRecord;
+        };
 
-        // Find the record for the start date
-        const openingStock =
-          openingStockRecord &&
-          openingStockRecord.products[0].records.find(
-            (rec) => rec.date.getTime() === monthStartDate.getTime()
-          );
-
-        // Find the record for the end date
-        const closingStock =
-          closingStockRecord &&
-          closingStockRecord.products[0].records.find(
-            (rec) => rec.date.getTime() === monthEndDate.getTime()
-          );
+        const openingStock = findClosestRecord(openingStockRecord, monthStartDate);
+        const closingStock = findClosestRecord(closingStockRecord, monthEndDate);
 
         console.log('Opening Stock:', openingStock);
         console.log('Closing Stock:', closingStock);
 
-        // Find product name based on product ID
         const product = productsInCategory.find((p) => p._id.toString() === productId.toString());
 
         return {
@@ -579,6 +571,7 @@ app.get('/monthly-stocks/:year/:month/:category', async (req, res) => {
     res.status(500).json({ error: 'Internal Server Error' });
   }
 });
+
 
 
 
